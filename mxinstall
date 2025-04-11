@@ -1,0 +1,65 @@
+#!/bin/sh
+###############################################################################
+# Program:
+# 		MOXA Linux driver installer
+#	
+# History:
+# 2009/09/11
+#
+# Author:
+# Ken Huang, ken.huang@moxa.com
+#
+# Discription:
+# The script install and load the MOXA Linux driver.
+#
+###############################################################################
+
+#------------------------------------------------------------------------------
+# For the "MOXA USB-to-Serial Port Driver" designer who want to change the
+# default behavior of driver, please refer below instructions.
+#   - Define one of following values to set default UART mode
+#     DEFAULT_UART_MODE=0  ==> RS4852W
+#     DEFAULT_UART_MODE=1  ==> RS232
+#     DEFAULT_UART_MODE=2  ==> RS422
+#     DEFAULT_UART_MODE=3  ==> RS4854W
+#   - Define one or more following values to disable UART mode
+#     NOT_ALLOW_RS232
+#     NOT_ALLOW_RS422
+#     NOT_ALLOW_RS4852W
+#     NOT_ALLOW_RS4854W
+#
+#   - Usage:
+#       # ./mxinstall install kflags="-DDEFAULT_UART_MODE=1 -DNOT_ALLOW_RS422 -DNOT_ALLOW_RS4854W"
+#     This example disable RS422/RS4854W and set RS232 as default.
+#------------------------------------------------------------------------------
+
+TARGET_DRIVER=mxu11x0
+MXVER=`awk '{if($1=="Version" && $2=="Number:"){print $3}}' version.txt`
+INPUT=$1
+PARAM=$2
+
+if lsmod | grep -q $TARGET_DRIVER ; then
+    echo "Found driver in system..."
+    echo "Unloading driver..."
+    rmmod $TARGET_DRIVER || exit 1
+    make clean
+    echo "Unload driver successfully."
+    echo ""
+fi
+
+if [ "$INPUT" = "" ] ; then
+    INPUT="install"
+fi
+
+if [ "$PARAM" = "" ] ; then
+    PARAM="none="
+fi
+
+if make $INPUT "$PARAM"; then
+    echo ""
+    echo "Loading driver..."
+    modprobe $TARGET_DRIVER || exit 1
+    echo "************************************************************************"
+    echo " MOXA UPort 11x0 series driver ver $MXVER loaded successfully."
+    echo "************************************************************************"
+fi

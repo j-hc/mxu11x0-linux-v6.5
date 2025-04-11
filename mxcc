@@ -1,0 +1,83 @@
+#!/bin/sh
+#############################################################################
+# Program:
+#               MOXA Linux driver cross compile script
+#
+# Description:
+#  The script cross compile the MOXA linux driver
+#
+#############################################################################
+
+#save current directory
+CUR_DIR=`pwd`
+#MOXA Driver name
+MOXA_DRIVER="MOXA UPort 1100"
+#compile target drivers
+DRIVERS="mxu11x0"
+#output directory
+OUTPUT_FOLDER="output"
+
+#user input arch
+read -p "Enter target device architecture (ARCH) [arm]: " ARCH
+ARCH=${ARCH:-arm}
+
+#user input cross_compile
+read -p "Enter cross-compile (CROSS_COMPILE) [arm-linux-gnueabihf-]: " CROSS_COMPILE
+CROSS_COMPILE=${CROSS_COMPILE:-arm-linux-gnueabihf-}
+
+#user input target kernel source
+read -p "Enter target device kernel source directory [/moxa/kernel]: " KDIR
+KDIR=${KDIR:-/moxa/kernel/}
+
+# prepare output the script setting to build.log
+cd $CUR_DIR/driver
+echo "mxcc script: " >> build.log
+echo "ARCH = $ARCH" >> build.log
+echo "CROSS_COMPILE = $CROSS_COMPILE" >> build.log
+echo "KDIR = $KDIR" >> build.log
+
+#get target kernel source version
+cd $KDIR
+KVER=`make CROSS_COMPILE=$CROSS_COMPILE kernelversion 2>>$CUR_DIR/driver/build.log`
+KVER_MAJOR=`echo $KVER | cut -f1 -d.`
+KVER_MINOR=`echo $KVER | cut -f2 -d.`
+
+echo "* K_MAJ = $KVER_MAJOR" >> $CUR_DIR/driver/build.log
+echo "* K_MIN = $KVER_MINOR" >> $CUR_DIR/driver/build.log
+
+export PATH=$PATH:/usr/local/arm-linux-gnueabihf-6.3/usr/bin
+echo "PATH = ${PATH}" >> $CUR_DIR/driver/build.log
+
+#compile drivers
+for DRIVER in $DRIVERS
+do
+echo "* $DRIVER ******************" >> $CUR_DIR/driver/build.log
+
+cd $CUR_DIR/driver/
+if make -s ARCH=$ARCH CROSS_COMPILE=$CROSS_COMPILE KDIR=$KDIR KVER_MAJOR=$KVER_MAJOR KVER_MINOR=$KVER_MINOR >> $CUR_DIR/driver/build.log 2>&1; then
+	echo "******************************************"
+	echo "$DRIVER cross-compile is success."
+	echo "******************************************"
+	echo "make $DRIVER successfully." >> $CUR_DIR/driver/build.log
+else
+	echo "******************************************"
+	echo "$DRIVER cross-compile is failed"
+	echo "Please check build.log for further information."
+	echo "******************************************"
+	echo "ERROR: make $DRIVER failed." >> $CUR_DIR/driver/build.log
+fi
+
+#copy driver to output folder
+[ ! -d ${CUR_DIR}/${OUTPUT_FOLDER} ] && mkdir "${CUR_DIR}/${OUTPUT_FOLDER}"
+cp ${DRIVER}.ko "${CUR_DIR}/${OUTPUT_FOLDER}"
+echo "* $DRIVER fin **************" >> $CUR_DIR/driver/build.log
+done
+
+cp -f $CUR_DIR/driver/build.log $CUR_DIR/build.log
+
+echo "************************************************************************"
+echo "$MOXA_DRIVER series driver cross-compile finish."
+echo "If cross compile is success, driver is outputted to ${OUTPUT_FOLDER} folder."
+echo "************************************************************************
+" 
+cd $CUR_DIR
