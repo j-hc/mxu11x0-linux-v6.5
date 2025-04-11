@@ -196,7 +196,11 @@ static int mxu1_tiocmget(struct tty_struct *tty);
 static int mxu1_tiocmset(struct tty_struct *tty,
 	unsigned int set, unsigned int clear);
 #endif
+#if(LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0))
+static int mxu1_break(struct tty_struct *tty, int break_state);
+#else
 static void mxu1_break(struct tty_struct *tty, int break_state);
+#endif
 #endif
 
 #if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19))
@@ -1734,7 +1738,11 @@ static int mxu1_tiocmset(struct tty_struct *tty,
 static void mxu1_break(struct usb_serial_port *port, int break_state)
 {
 #else
+#if(LINUX_VERSION_CODE < KERNEL_VERSION(6,5,0))
 static void mxu1_break(struct tty_struct *tty, int break_state)
+#else
+static int mxu1_break(struct tty_struct *tty, int break_state)
+#endif
 {
 	struct usb_serial_port *port = tty->driver_data;
 #endif
@@ -1744,7 +1752,11 @@ static void mxu1_break(struct tty_struct *tty, int break_state)
 	dbg("%s - state = %d", __FUNCTION__, break_state);
 
 	if (mxport == NULL)
+#if(LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0))
+		return 0;
+#else
 		return;
+#endif
 
 	mxu1_drain(mxport, (mxport->mxp_closing_wait*HZ)/100, 0);
 
@@ -1756,6 +1768,10 @@ static void mxu1_break(struct tty_struct *tty, int break_state)
 	mxu1_set_termios(mxport->mxp_port,NULL);
 #else
 	mxu1_set_termios(NULL, mxport->mxp_port,NULL);
+
+#if(LINUX_VERSION_CODE >= KERNEL_VERSION(6,5,0))
+	return mxport->mxp_send_break;
+#endif
 #endif	
 }
 
